@@ -14,12 +14,15 @@ class NGCF(nn.Module):
         super(NGCF, self).__init__()
         self.n_user = n_user
         self.n_item = n_item
-        self.device = args.device
+        self.device = torch.device("cuda:0")
         self.emb_size = args.embed_size
         self.batch_size = args.batch_size
         self.node_dropout = args.node_dropout[0]
         self.mess_dropout = args.mess_dropout
         self.batch_size = args.batch_size
+        self.user_embeddings =  torch.load(args.user_emb_file) if (args.dataset == 'elliptic') and (args.use_features) else None
+        self.item_embeddings =  torch.load(args.item_emb_file) if args.dataset == 'elliptic' and (args.use_features) else None
+        self.args = args
 
         self.norm_adj = norm_adj
 
@@ -37,30 +40,33 @@ class NGCF(nn.Module):
         Get sparse adj.
         """
         self.sparse_norm_adj = self._convert_sp_mat_to_sp_tensor(self.norm_adj).to(self.device)
-
     def init_weight(self):
         # xavier init
         initializer = nn.init.xavier_uniform_
 
+        if self.user_embeddings is None:
+            self.user_embeddings = initializer(torch.empty(self.n_user, self.emb_size))
+        if self.item_embeddings is None:
+            self.item_embeddings = initializer(torch.empty(self.n_item, self.emb_size))
+
+        assert self.user_embeddings.shape == (self.n_user, self.emb_size), f'user_embeddings shape error {self.user_embeddings.shape} instead of {(self.n_user, self.emb_size)}'
+        assert self.item_embeddings.shape == (self.n_item, self.emb_size), f'item_embeddings shape error {self.item_embeddings.shape} instead of {(self.n_item, self.emb_size)}'
+
         embedding_dict = nn.ParameterDict({
-            'user_emb': nn.Parameter(initializer(torch.empty(self.n_user,
-                                                 self.emb_size))),
-            'item_emb': nn.Parameter(initializer(torch.empty(self.n_item,
-                                                 self.emb_size)))
+            'user_emb': nn.Parameter(self.user_embeddings),
+            'item_emb': nn.Parameter(self.item_embeddings)
         })
 
         weight_dict = nn.ParameterDict()
         layers = [self.emb_size] + self.layers
         for k in range(len(self.layers)):
-            weight_dict.update({'W_gc_%d'%k: nn.Parameter(initializer(torch.empty(layers[k],
-                                                                      layers[k+1])))})
-            weight_dict.update({'b_gc_%d'%k: nn.Parameter(initializer(torch.empty(1, layers[k+1])))})
-
-            weight_dict.update({'W_bi_%d'%k: nn.Parameter(initializer(torch.empty(layers[k],
-                                                                      layers[k+1])))})
-            weight_dict.update({'b_bi_%d'%k: nn.Parameter(initializer(torch.empty(1, layers[k+1])))})
+            weight_dict.update({'W_gc_%d' % k: nn.Parameter(initializer(torch.empty(layers[k], layers[k + 1])))})
+            weight_dict.update({'b_gc_%d' % k: nn.Parameter(initializer(torch.empty(1, layers[k + 1])))})
+            weight_dict.update({'W_bi_%d' % k: nn.Parameter(initializer(torch.empty(layers[k], layers[k + 1])))})
+            weight_dict.update({'b_bi_%d' % k: nn.Parameter(initializer(torch.empty(1, layers[k + 1])))})
 
         return embedding_dict, weight_dict
+
 
     def _convert_sp_mat_to_sp_tensor(self, X):
         coo = X.tocoo()
@@ -82,8 +88,14 @@ class NGCF(nn.Module):
         return out * (1. / (1 - rate))
 
     def create_bpr_loss(self, users, pos_items, neg_items):
-        pos_scores = torch.sum(torch.mul(users, pos_items), axis=1)
-        neg_scores = torch.sum(torch.mul(users, neg_items), axis=1)
+        if self.args.dataset == 'elliptic':
+            return self.create_bpr_loss_n_neg(users, pos_items, neg_items)
+        else:
+            return self.create_bpr_loss_1_neg(users, pos_items, neg_items)
+        
+    def create_bpr_loss_1_neg(self, users, pos_items, neg_items):
+        pos_scores = torch.sum(torch.mul(users, pos_items), axis=1).to(self.device)
+        neg_scores = torch.sum(torch.mul(users, neg_items), axis=1).to(self.device)
 
         maxi = nn.LogSigmoid()(pos_scores - neg_scores)
 
@@ -97,18 +109,37 @@ class NGCF(nn.Module):
 
         return mf_loss + emb_loss, mf_loss, emb_loss
 
+    def create_bpr_loss_n_neg(self, users, pos_items, neg_items):
+        pos_scores = torch.sum(torch.mul(users, pos_items), axis=1).to(self.device)
+        neg_items = neg_items.view(self.args.batch_size, self.args.n_neg,-1).to(self.device)
+        users_expanded = users.unsqueeze(1).to(self.device)  # (batch_size, 1, embedding_dim)
+
+    # Calculate negative scores for each negative item
+        neg_scores = torch.sum(torch.mul(users_expanded, neg_items), axis=2).to(self.device)  # (batch_size, n_negative)
+        pos_scores_expanded = pos_scores.unsqueeze(1).to(self.device)  # (batch_size, 1)
+        
+        # Calculate the BPR loss
+        maxi = nn.LogSigmoid()(pos_scores_expanded - neg_scores)  # (batch_size, n_negative)
+        mf_loss = -1 * torch.mean(maxi)
+
+        # Calculate regularizer
+        regularizer = (torch.norm(users) ** 2
+                    + torch.norm(pos_items) ** 2
+                    + torch.norm(neg_items) ** 2) / 2
+        emb_loss = self.decay * regularizer / self.batch_size
+
+        return mf_loss + emb_loss, mf_loss, emb_loss
+
     def rating(self, u_g_embeddings, pos_i_g_embeddings):
         return torch.matmul(u_g_embeddings, pos_i_g_embeddings.t())
 
     def forward(self, users, pos_items, neg_items, drop_flag=True):
-
+        
         A_hat = self.sparse_dropout(self.sparse_norm_adj,
                                     self.node_dropout,
                                     self.sparse_norm_adj._nnz()) if drop_flag else self.sparse_norm_adj
-
         ego_embeddings = torch.cat([self.embedding_dict['user_emb'],
                                     self.embedding_dict['item_emb']], 0)
-
         all_embeddings = [ego_embeddings]
 
         for k in range(len(self.layers)):
@@ -149,3 +180,28 @@ class NGCF(nn.Module):
         neg_i_g_embeddings = i_g_embeddings[neg_items, :]
 
         return u_g_embeddings, pos_i_g_embeddings, neg_i_g_embeddings
+
+
+    # def init_weight(self):
+    #     # xavier init
+    #     initializer = nn.init.xavier_uniform_
+
+    #     embedding_dict = nn.ParameterDict({
+    #         'user_emb': nn.Parameter(initializer(torch.empty(self.n_user,
+    #                                              self.emb_size))),
+    #         'item_emb': nn.Parameter(initializer(torch.empty(self.n_item,
+    #                                              self.emb_size)))
+    #     })
+
+    #     weight_dict = nn.ParameterDict()
+    #     layers = [self.emb_size] + self.layers
+    #     for k in range(len(self.layers)):
+    #         weight_dict.update({'W_gc_%d'%k: nn.Parameter(initializer(torch.empty(layers[k],
+    #                                                                   layers[k+1])))})
+    #         weight_dict.update({'b_gc_%d'%k: nn.Parameter(initializer(torch.empty(1, layers[k+1])))})
+
+    #         weight_dict.update({'W_bi_%d'%k: nn.Parameter(initializer(torch.empty(layers[k],
+    #                                                                   layers[k+1])))})
+    #         weight_dict.update({'b_bi_%d'%k: nn.Parameter(initializer(torch.empty(1, layers[k+1])))})
+
+    #     return embedding_dict, weight_dict

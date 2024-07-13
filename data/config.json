@@ -1,0 +1,39 @@
+{
+    
+    "paths": {
+        "raw_data_path": "data/elliptic/raw/raw_emb.pt",
+        "node_idx_map_path": "data/elliptic/raw/node_idx_map.pt",
+        "data_df_path": "data/elliptic/raw/data_df.pkl"
+    },
+    "output_paths":{
+        "train_file": "train.txt",
+        "test_file": "test.txt",
+        "emb_receivers": "emb_receivers.pt",
+        "emb_senders": "emb_senders.pt",
+        "neg_senders": "senders_lic.pkl",
+        "path_licit_list": "licit_datalist.pkl"
+    },
+    "dataset": {
+        "train_ratio": 0.8,
+        "val_ratio": 0.1,
+        "n_neg": 100
+    },
+    "model": {
+        "input_dim": 43,
+        "num_layers": 3,
+        "hidden_dims": [64, 64, 43], 
+        "dropout": 0.3,
+        "conv": "GIN",
+        "activation": "ELU",
+        "pool": "sum"
+    },
+    "experiment": {
+        "batch_size": 256
+    },
+    "test": {
+        "num_illicits": 1,
+        "num_licits": 1,
+        "num_samples": 256,
+        "top_k": 1
+    }
+}

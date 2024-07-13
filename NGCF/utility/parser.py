@@ -22,14 +22,14 @@ def parse_args():
                         help='0: No pretrain, -1: Pretrain with the learned embeddings, 1:Pretrain with stored models.')
     parser.add_argument('--verbose', type=int, default=1,
                         help='Interval of evaluation.')
-    parser.add_argument('--epoch', type=int, default=400,
+    parser.add_argument('--epoch', type=int, default=100,
                         help='Number of epoch.')
 
-    parser.add_argument('--embed_size', type=int, default=64,
+    parser.add_argument('--embed_size', type=int, default=43,
                         help='Embedding size.')
-    parser.add_argument('--layer_size', nargs='?', default='[64,64,64]',
+    parser.add_argument('--layer_size', nargs='?', default='[43,43,43]',
                         help='Output sizes of every layer')
-    parser.add_argument('--batch_size', type=int, default=1024,
+    parser.add_argument('--batch_size', type=int, default=128,
                         help='Batch size.')
 
     parser.add_argument('--regs', nargs='?', default='[1e-5]',
@@ -42,7 +42,7 @@ def parse_args():
     parser.add_argument('--adj_type', nargs='?', default='norm',
                         help='Specify the type of the adjacency (laplacian) matrix from {plain, norm, mean}.')
 
-    parser.add_argument('--gpu_id', type=int, default=6)
+    parser.add_argument('--gpu_id', type=int, default=0)
 
     parser.add_argument('--node_dropout_flag', type=int, default=1,
                         help='0: Disable node dropout, 1: Activate node dropout')
@@ -62,4 +62,5 @@ def parse_args():
 
     parser.add_argument('--report', type=int, default=0,
                         help='0: Disable performance report w.r.t. sparsity levels, 1: Show performance report w.r.t. sparsity levels')
+    parser.add_argument('--command', type=str, help='Command to run', choices=['run', 'sweep'],default='run')
     return parser.parse_args()

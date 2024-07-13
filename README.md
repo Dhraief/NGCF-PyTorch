@@ -25,14 +25,28 @@ The code has been tested under Python 3.6.9. The required packages are as follow
 The instruction of commands has been clearly stated in the codes (see the parser function in NGCF/utility/parser.py).
 * Gowalla dataset
 ```
-python main.py --dataset gowalla --regs [1e-5] --embed_size 64 --layer_size [64,64,64] --lr 0.0001 --save_flag 1 --pretrain 0 --batch_size 1024 --epoch 400 --verbose 1 --node_dropout [0.1] --mess_dropout [0.1,0.1,0.1]
+python main.py --dataset elliptic --regs [1e-5]  --lr 0.0001 --save_flag 1 --pretrain 0  --epoch 1000 --verbose 1 --node_dropout [0.1] --mess_dropout [0.1,0.1,0.1]
 ```
 
 * Amazon-book dataset
 ```
-python main.py --dataset amazon-book --regs [1e-5] --embed_size 64 --layer_size [64,64,64] --lr 0.0005 --save_flag 1 --pretrain 0 --batch_size 1024 --epoch 200 --verbose 50 --node_dropout [0.1] --mess_dropout [0.1,0.1,0.1]
+python main.py --dataset amazon-book --regs [1e-5] --embed_size 64 --layer_size [64,64,64] --lr 0.0005 --save_flag 1 --pretrain 0 --batch_size 1024 --epoch 500 --verbose 50 --node_dropout [0.1] --mess_dropout [0.1,0.1,0.1]
 ```
 ## Supplement
 
 * The parameter `negative_slope` of LeakyReLu was set to 0.2, since the default value of PyTorch and TensorFlow is different.
 * If the arguement `node_dropout_flag` is set to 1, it will lead to higher calculational cost.
+
+
+python main.py --dataset elliptic --regs [1.059]  --lr 1 --save_flag 1 --pretrain 0  --epoch 500 --verbose 1 --node_dropout [0.161] --mess_dropout [0.1,0.1,0.1]
+
+
+hyperparameter with feature:
+python main.py --dataset elliptic --regs [1.059]  --lr 1 --save_flag 1 --pretrain 0  --epoch 1000 --verbose 1 --node_dropout [0.161] --mess_dropout [0.1,0.1,0.1]
+
+1. 
+python main.py --dataset elliptic --regs [1.0309978844868517]  --lr 1.0093932535596215 --save_flag 1 --pretrain 0  --epoch 1000 --verbose 1 --node_dropout [0.48823435812000826] --mess_dropout [0.1,0.1,0.1] --batch_size 32
+
+2.
+python main.py --dataset elliptic --regs [0]  --lr 0.0001 --save_flag 1 --pretrain 0  --epoch 300 --verbose 1 --node_dropout [0.1] --mess_dropout [0.1,0.1,0.1] --batch_size 16
+

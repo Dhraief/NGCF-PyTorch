@@ -1,0 +1,23 @@
+name: my_bayesian_sweep
+method: bayes
+metric:
+  goal: maximize
+  name: best_hit_20
+
+parameters:
+  lr:
+    distribution: log_uniform
+    min: 0.0001
+    max: 0.01
+  batch_size:
+    values: [16, 32, 64, 128]
+  node:dropout:
+    distribution: uniform
+    min: 0.0
+    max: 0.5
+  regs:
+    distribution: log_uniform
+    min: 1e-5
+    max: 1e-1
+  n_neg:
+    values: [1, 10, 50, 100, 200]

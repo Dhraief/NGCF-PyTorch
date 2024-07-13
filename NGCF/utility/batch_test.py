@@ -8,15 +8,37 @@ Wang Xiang et al. Neural Graph Collaborative Filtering. In SIGIR 2019.
 import utility.metrics as metrics
 from utility.parser import parse_args
 from utility.load_data import *
+from utility.load_elliptic import *
 import multiprocessing
 import heapq
+from utility.logger import setup_logger
+import json 
+import wandb
 
+logger = setup_logger(__name__)
 cores = multiprocessing.cpu_count() // 2
 
-args = parse_args()
-Ks = eval(args.Ks)
+def load_config(args, file_path):
+    with open(file_path, 'r') as file:
+        config = json.load(file)
+    for key, value in config.items():
+        setattr(args, key, value)
+    
 
-data_generator = Data(path=args.data_path + args.dataset, batch_size=args.batch_size)
+#TODO fix how I am getting the path
+path_cfg = "/skunk-pod-storage-mohamed-2eali-2edhraief-40ibm-2ecom-pvc/NGCF-PyTorch/NGCF/utility/cfg.json"
+
+args = parse_args()
+load_config(args, path_cfg)
+
+Ks = eval(args.Ks)
+if args.dataset == 'elliptic':
+
+    logger.info('Using Elliptic dataset')
+    data_generator = Elliptic(path=args.data_path + args.dataset, batch_size=args.batch_size,arg=args)
+    logger.info('Data loaded')
+else:
+    data_generator = Data(path=args.data_path + args.dataset, batch_size=args.batch_size)
 USR_NUM, ITEM_NUM = data_generator.n_users, data_generator.n_items
 N_TRAIN, N_TEST = data_generator.n_train, data_generator.n_test
 BATCH_SIZE = args.batch_size
@@ -113,7 +135,7 @@ def test(model, users_to_test, drop_flag=False, batch_test_flag=False):
               'hit_ratio': np.zeros(len(Ks)), 'auc': 0.}
 
     pool = multiprocessing.Pool(cores)
-
+    
     u_batch_size = BATCH_SIZE * 2
     i_batch_size = BATCH_SIZE
 
@@ -176,6 +198,8 @@ def test(model, users_to_test, drop_flag=False, batch_test_flag=False):
                                                               drop_flag=True)
                 rate_batch = model.rating(u_g_embeddings, pos_i_g_embeddings).detach().cpu()
 
+        # print("Rate Batch Dimensions: ", rate_batch.shape)
+        # print("User Batch Dimensions: ", len(user_batch))
         user_batch_rating_uid = zip(rate_batch.numpy(), user_batch)
         batch_result = pool.map(test_one_user, user_batch_rating_uid)
         count += len(batch_result)

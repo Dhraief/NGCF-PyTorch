@@ -1,0 +1,13 @@
+{
+  "path_neg_items": "/skunk-pod-storage-mohamed-2eali-2edhraief-40ibm-2ecom-pvc/NGCF-PyTorch/Data/elliptic/senders_lic.pkl",
+  "user_emb_file":"/skunk-pod-storage-mohamed-2eali-2edhraief-40ibm-2ecom-pvc/NGCF-PyTorch/Data/elliptic/emb_receivers.pt",
+  "item_emb_file":"/skunk-pod-storage-mohamed-2eali-2edhraief-40ibm-2ecom-pvc/NGCF-PyTorch/Data/elliptic/emb_senders.pt",
+  "path_licit_datalist": "/skunk-pod-storage-mohamed-2eali-2edhraief-40ibm-2ecom-pvc/NGCF-PyTorch/Data/elliptic/licit_datalist.pkl",
+  "n_neg":100,
+  "use_features":true,
+  "a":1,
+  "b":5,
+  "k":1,
+  "num_samples":256,
+  "sweep_file": "elliptic.yaml"
+}
